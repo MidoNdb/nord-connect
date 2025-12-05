@@ -66,8 +66,7 @@ export default function Sidebar({ activeFeature, setActiveFeature, isCollapsed, 
       <nav className="p-4 space-y-2">
        
         <NavItem
-          icon={<HomeIcon />}
-          label="Accueil"
+          icon={<HomeIcon />}label="Simulateur"
           active={activeFeature === 'home'}
           onClick={() => setActiveFeature('home')}
           isCollapsed={isCollapsed}

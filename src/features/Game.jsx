@@ -13,6 +13,8 @@ export default function Game({ onBackToHome }) {
   const [selectedSolution, setSelectedSolution] = useState(null);
   const [bigTechSelection, setBigTechSelection] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [bigTechThinking, setBigTechThinking] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
 
   const currentSolutions = currentProblem ? problemSolutions[currentProblem.id] || [] : [];
 
@@ -29,63 +31,73 @@ export default function Game({ onBackToHome }) {
 
     setSelectedSolution(solution);
     setIsAnimating(true);
+    setBigTechThinking(true);
 
-    const bigTechChoice = getRandomBigTechChoice();
-    setBigTechSelection(bigTechChoice);
-
+    // Phase 1 : Big Tech réfléchit (1.5s)
     setTimeout(() => {
-      setRevealed(true);
+      const bigTechChoice = getRandomBigTechChoice();
+      setBigTechSelection(bigTechChoice);
+      setBigTechThinking(false);
+      setShowComparison(true);
 
+      // Phase 2 : Affichage des deux choix (2s)
       setTimeout(() => {
-        let result = "";
+        setRevealed(true);
 
-        if (solution.isCorrect) {
-          setPlayerScore(prev => prev + 2);
-          result = "🎯 Solution NIRD optimale ! +2 points";
-        } else if (
-          solution.sustainability > bigTechChoice.sustainability &&
-          solution.autonomy > bigTechChoice.autonomy
-        ) {
-          setPlayerScore(prev => prev + 1);
-          result = "✅ Votre solution est plus durable ! +1 point";
-        } else if (bigTechChoice.isCorrect) {
-          setBigTechScore(prev => prev + 2);
-          result = "😱 Big Tech a choisi la bonne solution ! +2 points";
-        } else if (bigTechChoice.cost < solution.cost) {
-          setBigTechScore(prev => prev + 1);
-          result = "💰 Solution Big Tech moins coûteuse +1 point";
-        } else {
-          if (Math.random() > 0.5) {
+        // Phase 3 : Calcul du résultat (1.5s)
+        setTimeout(() => {
+          let result = "";
+
+          if (solution.isCorrect) {
+            setPlayerScore(prev => prev + 2);
+            result = "🎯 Solution NIRD optimale ! +2 points";
+          } else if (
+            solution.sustainability > bigTechChoice.sustainability &&
+            solution.autonomy > bigTechChoice.autonomy
+          ) {
             setPlayerScore(prev => prev + 1);
-            result = "⚖️ Votre solution est légèrement meilleure +1 point";
-          } else {
+            result = "✅ Votre solution est plus durable ! +1 point";
+          } else if (bigTechChoice.isCorrect) {
+            setBigTechScore(prev => prev + 2);
+            result = "😱 Big Tech a choisi la bonne solution ! +2 points";
+          } else if (bigTechChoice.cost < solution.cost) {
             setBigTechScore(prev => prev + 1);
-            result = "⚖️ Solution Big Tech légèrement meilleure +1 point";
+            result = "💰 Solution Big Tech moins coûteuse ! +1 point";
+          } else {
+            if (Math.random() > 0.5) {
+              setPlayerScore(prev => prev + 1);
+              result = "⚖️ Votre solution est légèrement meilleure ! +1 point";
+            } else {
+              setBigTechScore(prev => prev + 1);
+              result = "⚖️ Solution Big Tech légèrement meilleure ! +1 point";
+            }
           }
-        }
 
-        setMessage(result);
+          setMessage(result);
 
-        const nextRound = round + 1;
-        if (
-          playerScore + 2 >= 10 ||
-          bigTechScore + 2 >= 10 ||
-          nextRound === problems.length
-        ) {
-          setTimeout(() => setGameOver(true), 1500);
-        } else {
-          setTimeout(() => {
-            setRound(nextRound);
-            setCurrentProblem(problems[nextRound]);
-            setRevealed(false);
-            setSelectedSolution(null);
-            setBigTechSelection(null);
-            setIsAnimating(false);
-            setMessage("");
-          }, 2000);
-        }
-      }, 1500);
-    }, 500);
+          // Phase 4 : Passage au round suivant ou fin de partie (2.5s)
+          const nextRound = round + 1;
+          if (
+            playerScore + 2 >= 10 ||
+            bigTechScore + 2 >= 10 ||
+            nextRound === problems.length
+          ) {
+            setTimeout(() => setGameOver(true), 2000);
+          } else {
+            setTimeout(() => {
+              setRound(nextRound);
+              setCurrentProblem(problems[nextRound]);
+              setRevealed(false);
+              setSelectedSolution(null);
+              setBigTechSelection(null);
+              setIsAnimating(false);
+              setMessage("");
+              setShowComparison(false);
+            }, 2500);
+          }
+        }, 1500);
+      }, 2000);
+    }, 1500);
   };
 
   const resetGame = () => {
@@ -99,11 +111,13 @@ export default function Game({ onBackToHome }) {
     setSelectedSolution(null);
     setBigTechSelection(null);
     setIsAnimating(false);
+    setBigTechThinking(false);
+    setShowComparison(false);
   };
 
   // ========== COMPOSANT SOLUTION CARD ==========
 
-  const SolutionCard = ({ solution, isSelected, isBigTech, onClick }) => {
+  const SolutionCard = ({ solution, isSelected, isBigTech, onClick, isThinking }) => {
     const diffColors = getDifficultyColors(solution.difficulty);
 
     return (
@@ -118,13 +132,17 @@ export default function Game({ onBackToHome }) {
               ? "border-[#0057A4] scale-[1.02] shadow-[0_0_30px_rgba(26,132,217,0.5)]"
               : "border-[#F6D464] scale-[1.02] shadow-[0_0_30px_rgba(246,212,100,0.5)]"
             : "hover:border-[#F6D464] hover:shadow-lg"
-        } ${isAnimating && !isSelected ? "opacity-50" : "opacity-100"}`}
+        } ${isAnimating && !isSelected ? "opacity-50" : "opacity-100"} ${
+          isThinking ? "animate-pulse" : ""
+        }`}
         onClick={onClick}
       >
+        {/* Badge difficulté */}
         <div className={`absolute top-3 right-3 px-2 sm:px-3 py-1 rounded-lg text-xs font-semibold ${diffColors.bg} ${diffColors.text} border ${diffColors.border}`}>
           {solution.difficulty.toUpperCase()}
         </div>
 
+        {/* Contenu */}
         <div className="pr-12">
           <h3 className="text-base sm:text-lg lg:text-xl font-bold mb-2 text-white drop-shadow-lg">
             {solution.title}
@@ -132,6 +150,7 @@ export default function Game({ onBackToHome }) {
           <p className="text-white/90 text-xs sm:text-sm mb-4">{solution.description}</p>
         </div>
 
+        {/* Indicateurs */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <div className="text-center p-2 rounded-lg bg-white/10 backdrop-blur-sm">
             <div className="text-xs text-[#F6D464] font-semibold">DURABLE</div>
@@ -147,6 +166,7 @@ export default function Game({ onBackToHome }) {
           </div>
         </div>
 
+        {/* Badge sélection */}
         {isSelected && (
           <div className="absolute bottom-3 left-3 flex items-center space-x-2">
             <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${isBigTech ? "bg-[#0057A4]" : "bg-[#F6D464]"}`}></div>
@@ -156,8 +176,9 @@ export default function Game({ onBackToHome }) {
           </div>
         )}
 
+        {/* Badge solution optimale */}
         {revealed && solution.isCorrect && (
-          <div className="absolute top-3 left-3 bg-[#F6D464]/20 px-2 sm:px-3 py-1 rounded-lg border border-[#F6D464]/30">
+          <div className="absolute top-3 left-3 bg-[#F6D464]/20 px-2 sm:px-3 py-1 rounded-lg border border-[#F6D464]/30 animate-fade-in">
             <span className="text-xs text-[#F6D464] font-semibold">⭐ OPTIMALE</span>
           </div>
         )}
@@ -174,8 +195,9 @@ export default function Game({ onBackToHome }) {
       <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-73px)] flex items-center justify-center">
         <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 sm:p-8 max-w-2xl w-full border-2 border-[#F6D464]/30 animate-fade-in">
           <div className="text-center mb-6 sm:mb-8">
+            <div className="text-6xl mb-4">{playerWon ? "🎉" : "😔"}</div>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">
-              {playerWon ? "🎉 Victoire NIRD !" : "😔 Big Tech l'emporte..."}
+              {playerWon ? "Victoire NIRD !" : "Big Tech l'emporte..."}
             </h2>
             <p className="text-base sm:text-xl text-white/80">
               {playerWon 
@@ -195,12 +217,22 @@ export default function Game({ onBackToHome }) {
             </div>
           </div>
 
-          <button
-            onClick={resetGame}
-            className="w-full bg-gradient-to-r from-[#F6D464] to-[#F6A55A] hover:from-[#F6A55A] hover:to-[#F37CCF] text-[#1a0b2e] font-bold py-3 sm:py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
-          >
-            Rejouer
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={resetGame}
+              className="flex-1 bg-gradient-to-r from-[#F6D464] to-[#F6A55A] hover:from-[#F6A55A] hover:to-[#F37CCF] text-[#1a0b2e] font-bold py-3 sm:py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+            >
+              Rejouer
+            </button>
+            {onBackToHome && (
+              <button
+                onClick={onBackToHome}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-8 rounded-xl transition-all duration-300 border-2 border-white/20 text-sm sm:text-base"
+              >
+                Menu principal
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -209,11 +241,11 @@ export default function Game({ onBackToHome }) {
   // ========== ÉCRAN DE JEU ==========
 
   return (
-    <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8">
+    <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-73px)]">
       <div className="max-w-7xl mx-auto">
         
-        {/* Bouton retour optionnel */}
-        {onBackToHome && (
+        {/* Bouton retour */}
+        {onBackToHome && !isAnimating && (
           <button
             onClick={onBackToHome}
             className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg flex items-center gap-2 transition-all"
@@ -267,6 +299,31 @@ export default function Game({ onBackToHome }) {
           </div>
         </div>
 
+        {/* Message Big Tech réfléchit */}
+        {bigTechThinking && (
+          <div className="bg-[#1A84D9]/20 backdrop-blur-lg rounded-2xl p-4 border-2 border-[#1A84D9]/50 text-center animate-pulse mb-6">
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-[#1A84D9] rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-[#1A84D9] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-[#1A84D9] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+              <p className="text-base sm:text-lg font-bold text-[#1A84D9]">
+                Big Tech analyse les options...
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Message comparaison */}
+        {showComparison && !revealed && (
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border-2 border-white/20 text-center animate-fade-in mb-6">
+            <p className="text-base sm:text-lg font-bold text-white">
+              Comparaison des choix en cours...
+            </p>
+          </div>
+        )}
+
         {/* Solutions */}
         <div className="grid gap-4 sm:gap-6 md:grid-cols-2 mb-6">
           {currentSolutions.map(solution => (
@@ -276,11 +333,12 @@ export default function Game({ onBackToHome }) {
               isSelected={selectedSolution?.id === solution.id || bigTechSelection?.id === solution.id}
               isBigTech={bigTechSelection?.id === solution.id}
               onClick={() => !isAnimating && handleSelectSolution(solution)}
+              isThinking={bigTechThinking}
             />
           ))}
         </div>
 
-        {/* Message */}
+        {/* Message résultat */}
         {message && (
           <div className="bg-[#F6D464]/20 backdrop-blur-lg rounded-2xl p-4 sm:p-6 border-2 border-[#F6D464]/50 text-center animate-fade-in mb-6">
             <p className="text-base sm:text-xl font-bold text-[#F6D464]">{message}</p>
@@ -293,7 +351,16 @@ export default function Game({ onBackToHome }) {
             <h3 className="text-base sm:text-lg font-bold text-white mb-2">
               💡 Explication de votre choix
             </h3>
-            <p className="text-sm sm:text-base text-white/80">{selectedSolution.explanation}</p>
+            <p className="text-sm sm:text-base text-white/80 mb-4">{selectedSolution.explanation}</p>
+            
+            {bigTechSelection && (
+              <div className="pt-4 border-t border-white/10">
+                <h4 className="text-sm sm:text-base font-bold text-[#1A84D9] mb-2">
+                  🤖 Choix de Big Tech
+                </h4>
+                <p className="text-xs sm:text-sm text-white/70">{bigTechSelection.explanation}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -306,7 +373,7 @@ export default function Game({ onBackToHome }) {
 // import { problems, problemSolutions } from "../data/cards";
 // import { getDifficultyColors } from "../data/types";
 
-// export default function Game() {
+// export default function Game({ onBackToHome }) {
 //   const [round, setRound] = useState(0);
 //   const [playerScore, setPlayerScore] = useState(0);
 //   const [bigTechScore, setBigTechScore] = useState(0);
@@ -425,12 +492,10 @@ export default function Game({ onBackToHome }) {
 //         } ${isAnimating && !isSelected ? "opacity-50" : "opacity-100"}`}
 //         onClick={onClick}
 //       >
-//         {/* Badge difficulté */}
 //         <div className={`absolute top-3 right-3 px-2 sm:px-3 py-1 rounded-lg text-xs font-semibold ${diffColors.bg} ${diffColors.text} border ${diffColors.border}`}>
 //           {solution.difficulty.toUpperCase()}
 //         </div>
 
-//         {/* Contenu */}
 //         <div className="pr-12">
 //           <h3 className="text-base sm:text-lg lg:text-xl font-bold mb-2 text-white drop-shadow-lg">
 //             {solution.title}
@@ -438,7 +503,6 @@ export default function Game({ onBackToHome }) {
 //           <p className="text-white/90 text-xs sm:text-sm mb-4">{solution.description}</p>
 //         </div>
 
-//         {/* Indicateurs */}
 //         <div className="grid grid-cols-3 gap-2 mb-4">
 //           <div className="text-center p-2 rounded-lg bg-white/10 backdrop-blur-sm">
 //             <div className="text-xs text-[#F6D464] font-semibold">DURABLE</div>
@@ -454,7 +518,6 @@ export default function Game({ onBackToHome }) {
 //           </div>
 //         </div>
 
-//         {/* Badge sélection */}
 //         {isSelected && (
 //           <div className="absolute bottom-3 left-3 flex items-center space-x-2">
 //             <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full animate-pulse ${isBigTech ? "bg-[#0057A4]" : "bg-[#F6D464]"}`}></div>
@@ -464,7 +527,6 @@ export default function Game({ onBackToHome }) {
 //           </div>
 //         )}
 
-//         {/* Badge solution optimale */}
 //         {revealed && solution.isCorrect && (
 //           <div className="absolute top-3 left-3 bg-[#F6D464]/20 px-2 sm:px-3 py-1 rounded-lg border border-[#F6D464]/30">
 //             <span className="text-xs text-[#F6D464] font-semibold">⭐ OPTIMALE</span>
@@ -480,7 +542,7 @@ export default function Game({ onBackToHome }) {
 //     const playerWon = playerScore > bigTechScore;
     
 //     return (
-//       <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8 min-h-screen">
+//       <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-73px)] flex items-center justify-center">
 //         <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-6 sm:p-8 max-w-2xl w-full border-2 border-[#F6D464]/30 animate-fade-in">
 //           <div className="text-center mb-6 sm:mb-8">
 //             <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">
@@ -518,8 +580,22 @@ export default function Game({ onBackToHome }) {
 //   // ========== ÉCRAN DE JEU ==========
 
 //   return (
-//     <div className="min-h-screen bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] p-4 sm:p-6 lg:p-8">
+//     <div className="bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e] -m-8 p-4 sm:p-6 lg:p-8">
 //       <div className="max-w-7xl mx-auto">
+        
+//         {/* Bouton retour optionnel */}
+//         {onBackToHome && (
+//           <button
+//             onClick={onBackToHome}
+//             className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg flex items-center gap-2 transition-all"
+//           >
+//             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+//               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+//             </svg>
+//             Retour au menu
+//           </button>
+//         )}
+
 //         {/* Header */}
 //         <div className="mb-6 sm:mb-8">
 //           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
